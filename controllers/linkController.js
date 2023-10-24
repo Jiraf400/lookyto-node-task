@@ -12,16 +12,17 @@ class linkController {
 
             const userFromToken = validateAuthHeaderAndExtractUsername(req, res);
 
+            const userFromDb = await User.findOne({'username': userFromToken});
+
             const {linkJson} = req.body;
 
             const hashedLink = generateHashedLink();
 
             const link = (await Link.create({
                 'original_link': linkJson,
-                'hashed_link': hashedLink
+                'hashed_link': hashedLink,
+                'user': userFromDb._id
             }));
-
-            const userFromDb = await User.findOne({'username': userFromToken});
 
             userFromDb.links.push(link);
 
@@ -56,6 +57,19 @@ class linkController {
 
     async getLinks(req, res) {
 
+        const userFromToken = validateAuthHeaderAndExtractUsername(req, res);
+
+        const userFromDb = await User.findOne({'username': userFromToken});
+
+        const linkArr = [];
+
+        for (const id of userFromDb.links) {
+            const linkById = await Link.findById(id);
+
+            linkArr.push(linkById);
+        }
+
+        return res.status(200).json(linkArr).end();
     }
 
 }
@@ -77,7 +91,6 @@ const validateAuthHeaderAndExtractUsername = (req, res) => {
 }
 
 const generateHashedLink = () => {
-
     const newLink = crypto.randomBytes(4).toString('hex');
     console.log('generateHashedLink: ' + newLink)
 

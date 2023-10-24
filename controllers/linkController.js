@@ -10,18 +10,7 @@ class linkController {
     async createLink(req, res) {
         try {
 
-            const authHeader = req.headers.authorization || req.headers.Authorization;
-            if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({'error': 'invalid token'}).end();
-            const token = authHeader.split(' ')[1];
-            console.log(token)
-
-            jwt.verify(
-                token,
-                process.env.ACCESS_TOKEN_SECRET,
-                (err, decoded) => {
-                    if (err) return res.status(401).json({'error': 'invalid token'}).end();
-                    req.user = decoded.username;
-                });
+            const userFromToken = validateAuthHeaderAndExtractUsername(req, res);
 
             const {linkJson} = req.body;
 
@@ -32,15 +21,14 @@ class linkController {
                 'hashed_link': hashedLink
             }));
 
-            const userFromDb = await User.findOne(req.user.toObject);
+            const userFromDb = await User.findOne({'username': userFromToken});
+
             userFromDb.links.push(link);
 
-            const savedUser = await User.updateOne(
+            await User.updateOne(
                 {'username': userFromDb.username},
                 {'links': userFromDb.links}
             );
-
-            console.log(`saved user: ${savedUser}`);
 
             return res.status(201).json({'link': hashedLink}).end();
 
@@ -51,15 +39,41 @@ class linkController {
 
     }
 
-    async deleteLink(req, res) {
+    async useShorterLink(req, res) {
 
+        const hashed_link = req.protocol + '://' + req.get('host') + req.originalUrl;
+
+        const linkFromDb = await Link.findOne({hashed_link});
+
+        if (!linkFromDb) {
+            return res.status(403).json({'error': 'No models found'}).end();
+        }
+
+        const originalLink = linkFromDb.original_link;
+
+        return res.redirect(originalLink);
     }
 
     async getLinks(req, res) {
 
     }
 
+}
 
+const validateAuthHeaderAndExtractUsername = (req, res) => {
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({'error': 'invalid token'}).end();
+    const token = authHeader.split(' ')[1];
+
+    jwt.verify(
+        token,
+        process.env.ACCESS_TOKEN_SECRET,
+        (err, decoded) => {
+            if (err) return res.status(401).json({'error': 'invalid token'}).end();
+            req.user = decoded.username;
+        });
+
+    return req.user;
 }
 
 const generateHashedLink = () => {

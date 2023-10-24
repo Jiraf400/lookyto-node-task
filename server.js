@@ -10,7 +10,7 @@ require('dotenv').config();
 app.use(express.json());
 
 app.use('/auth', authRouter);
-app.use('/links/', linkRouter);
+app.use('/links', linkRouter);
 app.use('/', linkRouter);
 
 const start = async () => {

@@ -2,8 +2,8 @@ const {Schema, model} = require('mongoose');
 
 const Link = new Schema({
     original_link: {type: String},
-    shorter_link: {type: String},
-    User: {type: String, ref: 'User'}
+    hashed_link: {type: String},
+    user: {type: Schema.Types.ObjectId, ref: 'User'}
 })
 
 module.exports = model('Link', Link)

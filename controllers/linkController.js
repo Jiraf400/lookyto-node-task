@@ -4,7 +4,6 @@ const crypto = require('crypto');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 
-
 class linkController {
 
     async createLink(req, res) {
@@ -12,23 +11,27 @@ class linkController {
 
             const userFromToken = validateAuthHeaderAndExtractUsername(req, res);
 
-            const userFromDb = await User.findOne({'username': userFromToken});
+            const userFromDb = await User.findOne({username: userFromToken});
+
+            if (!userFromDb) {
+                return res.status(403).json({'error': 'No users found'}).end();
+            }
 
             const {linkJson} = req.body;
 
             const hashedLink = generateHashedLink();
 
             const link = (await Link.create({
-                'original_link': linkJson,
-                'hashed_link': hashedLink,
-                'user': userFromDb._id
+                original_link: linkJson,
+                hashed_link: hashedLink,
+                user: userFromDb._id
             }));
 
             userFromDb.links.push(link);
 
             await User.updateOne(
-                {'username': userFromDb.username},
-                {'links': userFromDb.links}
+                {username: userFromDb.username},
+                {links: userFromDb.links}
             );
 
             return res.status(201).json({'link': hashedLink}).end();
@@ -47,7 +50,7 @@ class linkController {
         const linkFromDb = await Link.findOne({hashed_link});
 
         if (!linkFromDb) {
-            return res.status(403).json({'error': 'No models found'}).end();
+            return res.status(403).json({'error': 'No links found'}).end();
         }
 
         const originalLink = linkFromDb.original_link;
@@ -59,7 +62,7 @@ class linkController {
 
         const userFromToken = validateAuthHeaderAndExtractUsername(req, res);
 
-        const userFromDb = await User.findOne({'username': userFromToken});
+        const userFromDb = await User.findOne({username: userFromToken});
 
         const linkArr = [];
 
@@ -92,7 +95,6 @@ const validateAuthHeaderAndExtractUsername = (req, res) => {
 
 const generateHashedLink = () => {
     const newLink = crypto.randomBytes(4).toString('hex');
-    console.log('generateHashedLink: ' + newLink)
 
     return process.env.LINK_PREFIX + process.env.PORT + '/' + newLink;
 }

@@ -3,6 +3,7 @@ const Link = require('../models/Link');
 const crypto = require('crypto');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
+const redis = require('../config/redis');
 
 class linkController {
 
@@ -34,6 +35,8 @@ class linkController {
                 {links: userFromDb.links}
             );
 
+            await redis.set(link.hashed_link, JSON.stringify(link));
+
             return res.status(201).json({'link': hashedLink}).end();
 
         } catch (err) {
@@ -47,7 +50,12 @@ class linkController {
 
         const hashed_link = req.protocol + '://' + req.get('host') + req.originalUrl;
 
-        const linkFromDb = await Link.findOne({hashed_link});
+        let linkFromDb = JSON.parse(await redis.get(hashed_link));
+
+        if(!linkFromDb) {
+            console.log('linkFromDb taken from mongo')
+            linkFromDb = await Link.findOne({hashed_link});
+        }
 
         if (!linkFromDb) {
             return res.status(403).json({'error': 'No links found'}).end();
